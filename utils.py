@@ -8,6 +8,8 @@ import yaml
 from os import listdir
 from os.path import isfile, join
 import tqdm
+import imutils
+import time
 
 
 def read_image_with_pillow(img_path, is_gray=True):
@@ -117,5 +119,75 @@ def load_pos_PennPed_data(annotation_path):
     return np.array(positive_features)
 
 
+def load_pos_INRIA_data(annotation_path):
+    print("Loading data from INRIA...")
+    positive_features = []
+    onlyfiles = [f for f in listdir(
+        annotation_path) if isfile(join(annotation_path, f))]
+
+    for file_txt in tqdm.tqdm(onlyfiles, total=len(onlyfiles)):
+        with open(join(annotation_path, file_txt), encoding='latin-1') as f:
+            documents = yaml.full_load(f)
+        file_name = documents['Image filename']
+        img = cv2.imread(join('./data/INRIAPerson/', file_name))
+        for item, doc in documents.items():
+            if "box" in item:
+                coor = documents[item].split('-')
+                coor = [c.strip().translate(str.maketrans('', '', '() '))
+                        for c in coor]
+                x1, y1 = map(int, coor[0].split(','))
+                x2, y2 = map(int, coor[1].split(','))
+                sub_img = img[y1:y2, x1:x2, :]
+                # cv2.imshow("TEST", sub_img)
+                # cv2.waitKey(1)
+                # time.sleep(0.01)
+                f = hog(sub_img)
+                positive_features.append(f)
+    return np.array(positive_features)
+
+
+def pyramid(image, scale=1.5, minSize=(30, 30)):
+    # yield the original image
+    yield image
+    # keep looping over the pyramid
+    while True:
+        # compute the new dimensions of the image and resize it
+        w = int(image.shape[1] / scale)
+        image = imutils.resize(image, width=w)
+        # if the resized image does not meet the supplied minimum
+        # size, then stop constructing the pyramid
+        if image.shape[0] < minSize[1] or image.shape[1] < minSize[0]:
+            break
+        # yield the next image in the pyramid
+        yield image
+
+
+def sliding_window(image, stepSize, windowSize):
+    # slide a window across the image
+    for y in range(0, image.shape[0], stepSize):
+        for x in range(0, image.shape[1], stepSize):
+            # yield the current window
+            yield (x, y, image[y:y + windowSize[1], x:x + windowSize[0]])
+
+
 if __name__ == '__main__':
-    load_pos_PennPed_data('./data/PennFudanPed/Annotation')
+    # load_pos_PennPed_data('./data/PennFudanPed/Annotation')
+    load_pos_INRIA_data('./data/INRIAPerson/Train/annotations')
+    # image = cv2.imread('./a.png', 0)
+    # (winW, winH) = (64, 128)
+    # # loop over the image pyramid
+    # for resized in pyramid(image, scale=1.5):
+    #     # loop over the sliding window for each layer of the pyramid
+    #     for (x, y, window) in sliding_window(resized, stepSize=32, windowSize=(winW, winH)):
+    #         # if the window does not meet our desired window size, ignore it
+    #         if window.shape[0] != winH or window.shape[1] != winW:
+    #             continue
+    #         # THIS IS WHERE YOU WOULD PROCESS YOUR WINDOW, SUCH AS APPLYING A
+    #         # MACHINE LEARNING CLASSIFIER TO CLASSIFY THE CONTENTS OF THE
+    #         # WINDOW
+    #         # since we do not have a classifier, we'll just draw the window
+    #         clone = resized.copy()
+    #         cv2.rectangle(clone, (x, y), (x + winW, y + winH), (0, 255, 0), 2)
+    #         cv2.imshow("Window", clone)
+    #         cv2.waitKey(1)
+    #         time.sleep(0.5)
