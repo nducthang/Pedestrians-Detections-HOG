@@ -54,9 +54,9 @@ def hog(img, cell_size=8, block_size=2, bins=9):
             bx_from = bx
             bx_to = bx + block_size
             v = hist_tensor[by_from:by_to, bx_from:bx_to, :].flatten()
-            feature_tensor[by, bx, :] = v/LA.norm(v, 2)
-            if np.isnan(feature_tensor[by, bx, :]).any():
-                feature_tensor[by, bx, :] = v
+            feature_tensor[by, bx, :] = v/(LA.norm(v, 2)+0.00001)
+            # if np.isnan(feature_tensor[by, bx, :]).any():
+            #     feature_tensor[by, bx, :] = v
 
     # Vector đặc trưng đã chuẩn hoá
     return feature_tensor.flatten() # 3780 feature
